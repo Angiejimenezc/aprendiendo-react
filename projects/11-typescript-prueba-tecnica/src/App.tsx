@@ -3,11 +3,25 @@ import './App.css'
 import { UsersList } from './components/UsersList'
 import { SortBy, type User } from './types.d'
 
+const fetchUsers = async (page: number) => {
+  return await fetch(`https://randomuser.me/api?results=10&seed=midudev&page='${page}`)
+    .then(async res => {    
+      if(!res.ok) throw new Error('Ha ocurrido un error')
+      return await res.json()
+      })
+      .then(res => res.results)
+    }//cuando resuelves la promesa, te devuelve un json
+
 function App () {
   const [users, setUsers] = useState<User[]>([])
   const [showColors, setShowColors] = useState(false)
   const [sorting, setSorting] = useState<SortBy>(SortBy.NONE)
   const [filterCountry, setFilterCountry] = useState<string | null>(null)
+
+  //estado de carga y error
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<User>(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const originalUsers = useRef<User[]>([])
   // useRef -> para guardar un valor
@@ -37,17 +51,27 @@ function App () {
   }
 
   useEffect(() => {
-    fetch('https://randomuser.me/api?results=100')
-      .then(async res => await res.json())
-      .then(res => {
-        setUsers(res.results)
-        originalUsers.current = res.results
+    setLoading(true)
+    setError(false)
+
+    
+    fetchUsers(currentPage)
+      .then(users =>{ //cuando resuelves la promesa, te devuelve un json
+        setUsers(prevUsers => {
+          const newUsers = prevUsers.concat(users)
+          originalUsers.current = newUsers
+          return newUsers
+        })      
       })
-      .catch(err => {
+      .catch(err => { //cuando pillas un error
+        setError(err)
         console.error(err)
       })
-  }, [])
-
+      .finally(() => { //cuando termina la promesa y se ejecuta siempre
+        setLoading(false)
+      })
+  }, [currentPage])
+  
   const filteredUsers = useMemo(() => {
     console.log('calculate filteredUsers')
     return filterCountry != null && filterCountry.length > 0
@@ -74,26 +98,7 @@ function App () {
     })
   }, [filteredUsers, sorting])
 
-  // const filteredUsers = (() => {
-  //   console.log('calculate filteredUsers')
-  //   return filterCountry != null && filterCountry.length > 0
-  //     ? users.filter(user => {
-  //       return user.location.country.toLowerCase().includes(filterCountry.toLowerCase())
-  //     })
-  //     : users
-  // })()
-
-  // const sortedUsers = (() => {
-  //   console.log('calculate sortedUsers')
-
-  //   return sortByCountry
-  //     ? filteredUsers.toSorted(
-  //       (a, b) => a.location.country.localeCompare(b.location.country)
-  //     )
-  //     : filteredUsers
-  // })()
-
-  return (
+    return (
     <div className="App">
       <h1>Prueba técnica</h1>
       <header>
@@ -115,7 +120,16 @@ function App () {
 
       </header>
       <main>
-        <UsersList changeSorting={handleChangeSort} deleteUser={handleDelete} showColors={showColors} users={sortedUsers} />
+        {users.length > 0 && 
+        <UsersList changeSorting={handleChangeSort} deleteUser={handleDelete} showColors={showColors} users={sortedUsers} />}
+
+        {loading && <p>Cargando...</p>}
+
+        {error && <p>Ha ocurrido un error</p>}
+
+        {!error && users.length === 0 && <p>No hay usuarios</p>}
+        
+       {!loading && !error && <button onClick= {() => setCurrentPage(currentPage + 1)}>Cargar más resultados</button>}
       </main>
     </div>
   )

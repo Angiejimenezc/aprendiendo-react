@@ -21,7 +21,7 @@ export function UsersList ({ changeSorting, deleteUser, showColors, users }: Pro
       </thead>
 
       <tbody className={showColors ? 'table--showColors' : ''}>
-        {
+      {
           users.map((user) => {
             return (
               <tr key={user.email}>
